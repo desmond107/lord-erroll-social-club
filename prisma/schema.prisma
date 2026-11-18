@@ -1,0 +1,518 @@
+// The Lord Erroll Social Club — data model.
+//
+// Sensitive personal fields (email, phone, ID/passport number) are stored encrypted
+// (AES-256-GCM, columns ending in `Enc`). Lookups use keyed HMAC "blind indexes"
+// (columns ending in `Idx`), so equality search works without decrypting.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Packages ────────────────────────────────────────────────────────────
+
+enum PackageKind {
+  MAIN
+  JUNIOR
+  FAMILY
+}
+
+model Package {
+  id             String      @id @default(cuid())
+  slug           String      @unique
+  name           String
+  kind           PackageKind @default(MAIN)
+  /// Position on the ladder (1 = entry). Upgrades go to a higher rank.
+  rank           Int         @default(1)
+  annualFeeKes   Int
+  tagline        String      @default("")
+  /// This package's own benefits. Main tiers also inherit every lower tier's list.
+  benefits       String[]
+  /// Key into the card-finish table (src/lib/finishes.ts).
+  finish         String
+  /// "Most Popular", "Most Prestigious" or empty.
+  ribbon         String      @default("")
+  active         Boolean     @default(true)
+  sortOrder      Int         @default(0)
+  /// FAMILY: how many linked members the primary may add.
+  maxLinked      Int         @default(0)
+  /// Owner has confirmed the fee and benefits (seed data starts unconfirmed).
+  confirmed      Boolean     @default(false)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  applications Application[]
+  memberships  Membership[]
+  payments     Payment[]
+}
+
+// ─── Accounts (member portal logins) ─────────────────────────────────────
+// An Account is a person who can sign in: an adult member, a family primary or a
+// junior's guardian. Children never get an Account.
+
+model Account {
+  id           String    @id @default(cuid())
+  fullName     String
+  emailEnc     String
+  emailIdx     String    @unique
+  phoneEnc     String
+  phoneIdx     String    @unique
+  passwordHash String?
+  marketingOk  Boolean   @default(false)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  lastLoginAt  DateTime?
+
+  memberships  Membership[]
+  applications Application[]
+  sessions     MemberSession[]
+  dataRequests DataRequest[]
+}
+
+model MemberSession {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique
+  accountId String
+  account   Account  @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  ip        String?
+  userAgent String?
+
+  @@index([accountId])
+}
+
+// ─── Applications ────────────────────────────────────────────────────────
+
+enum ApplicationType {
+  INDIVIDUAL
+  FAMILY
+  JUNIOR
+}
+
+enum ApplicationStatus {
+  PENDING
+  INFO_REQUESTED
+  APPROVED
+  REJECTED
+  WITHDRAWN
+}
+
+model Application {
+  id           String            @id @default(cuid())
+  /// Short public reference shown to the applicant, e.g. APP-7K2M9Q.
+  ref          String            @unique
+  type         ApplicationType
+  status       ApplicationStatus @default(PENDING)
+  packageId    String
+  package      Package           @relation(fields: [packageId], references: [id])
+  accountId    String?
+  account      Account?          @relation(fields: [accountId], references: [id])
+
+  // Applicant: the adult member, the family primary, or the junior's guardian.
+  fullName      String
+  emailEnc      String
+  emailIdx      String
+  phoneEnc      String
+  phoneIdx      String
+  idNumberEnc   String
+  idNumberIdx   String
+  dateOfBirth   DateTime          @db.Date
+  residence     String
+  occupation    String
+  heardFrom     String
+  /// JUNIOR: guardian's relationship to the child.
+  relationship  String?
+  photoId       String?           @unique
+  photo         StoredFile?       @relation("ApplicationPhoto", fields: [photoId], references: [id])
+
+  termsAcceptedAt   DateTime
+  privacyConsentAt  DateTime
+  marketingOk       Boolean       @default(false)
+  /// JUNIOR: exact consent wording and when the guardian accepted it.
+  guardianConsentText String?
+  guardianConsentAt   DateTime?
+  photoConsentAt      DateTime?
+
+  adminNote     String?
+  /// Shown to the applicant when info is requested or the application is declined.
+  messageToApplicant String?
+  reviewedById  String?
+  reviewedBy    AdminUser?        @relation(fields: [reviewedById], references: [id])
+  reviewedAt    DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  ip            String?
+
+  dependants   ApplicationDependant[]
+  membership   Membership?
+
+  @@index([status, createdAt])
+  @@index([emailIdx])
+}
+
+/// A family member or junior child listed on an application.
+model ApplicationDependant {
+  id            String      @id @default(cuid())
+  applicationId String
+  application   Application @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  fullName      String
+  relationship  String
+  dateOfBirth   DateTime    @db.Date
+  photoId       String?     @unique
+  photo         StoredFile? @relation("DependantPhoto", fields: [photoId], references: [id])
+  /// JUNIOR: birth certificate or ID proving date of birth (Super Admin only).
+  dobProofId    String?     @unique
+  dobProof      StoredFile? @relation("DependantDobProof", fields: [dobProofId], references: [id])
+  sortOrder     Int         @default(0)
+}
+
+// ─── Memberships and cards ───────────────────────────────────────────────
+
+enum MembershipStatus {
+  PENDING_PAYMENT
+  ACTIVE
+  EXPIRED
+  SUSPENDED
+  LAPSED
+  CANCELLED
+}
+
+model Membership {
+  id            String           @id @default(cuid())
+  /// Base number, e.g. LE-2026-483920. Generated server-side, unique, never reused.
+  number        String           @unique
+  status        MembershipStatus @default(PENDING_PAYMENT)
+  isJunior      Boolean          @default(false)
+  packageId     String
+  package       Package          @relation(fields: [packageId], references: [id])
+  accountId     String
+  account       Account          @relation(fields: [accountId], references: [id])
+  applicationId String?          @unique
+  application   Application?     @relation(fields: [applicationId], references: [id])
+
+  memberSince   DateTime?
+  activatedAt   DateTime?
+  expiresAt     DateTime?
+  /// Package chosen for the next renewal (upgrade/downgrade at renewal).
+  nextPackageId String?
+  suspendedReason String?
+  /// JUNIOR → adult: the young member has accepted terms and taken over the account.
+  convertedFromJuniorAt DateTime?
+  /// JUNIOR → adult hand-over: the young adult's new account, awaiting their acceptance.
+  handoverAccountId String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  cardholders  Cardholder[]
+  payments     Payment[]
+  reminders    ReminderLog[]
+
+  @@index([status, expiresAt])
+}
+
+/// A person who carries a card. Every membership has exactly one primary cardholder
+/// (suffix ""), plus linked family members (-A, -B …) or, for juniors, the child (-J).
+model Cardholder {
+  id           String     @id @default(cuid())
+  membershipId String
+  membership   Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  /// "" for the primary, "A".."H" for family members, "J" for a junior.
+  suffix       String
+  /// Full card number, e.g. LE-2026-483920-A.
+  cardNumber   String     @unique
+  fullName     String
+  /// JUNIOR cards print the first name only.
+  displayName  String
+  relationship String     @default("Primary")
+  dateOfBirth  DateTime   @db.Date
+  photoId      String?    @unique
+  photo        StoredFile? @relation("CardholderPhoto", fields: [photoId], references: [id])
+  dobProofId   String?    @unique
+  dobProof     StoredFile? @relation("CardholderDobProof", fields: [dobProofId], references: [id])
+  /// Random token in the QR code. Rotating it invalidates printed cards.
+  verifyToken  String     @unique
+  active       Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+
+  @@unique([membershipId, suffix])
+}
+
+// ─── Payments ────────────────────────────────────────────────────────────
+
+enum PaymentMethod {
+  MPESA
+  CARD
+  CASH
+  BANK
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELLED
+}
+
+enum PaymentPurpose {
+  NEW
+  RENEWAL
+  UPGRADE
+}
+
+model Payment {
+  id            String         @id @default(cuid())
+  /// Receipt number printed on the emailed receipt, e.g. RCT-2026-00042.
+  receiptNo     String?        @unique
+  membershipId  String
+  membership    Membership     @relation(fields: [membershipId], references: [id])
+  packageId     String
+  package       Package        @relation(fields: [packageId], references: [id])
+  purpose       PaymentPurpose
+  method        PaymentMethod
+  status        PaymentStatus  @default(PENDING)
+  amountKes     Int
+  /// M-Pesa CheckoutRequestID / Paystack reference / manual reference.
+  providerRef   String?        @unique
+  /// M-Pesa receipt (e.g. SKL2ABC123) or Paystack transaction id. Unique to stop replays.
+  providerTxnId String?        @unique
+  payerPhoneIdx String?
+  failureReason String?
+  /// Membership period this payment pays for.
+  periodStart   DateTime?
+  periodEnd     DateTime?
+  confirmedById String?
+  confirmedBy   AdminUser?     @relation(fields: [confirmedById], references: [id])
+  note          String?
+  rawCallback   Json?
+  createdAt     DateTime       @default(now())
+  paidAt        DateTime?
+
+  @@index([status, paidAt])
+  @@index([membershipId])
+}
+
+// ─── Files (private storage) ─────────────────────────────────────────────
+
+enum FileKind {
+  PHOTO
+  DOB_PROOF
+}
+
+/// Files live outside /public, encrypted at rest. Only served through access-checked routes.
+model StoredFile {
+  id         String   @id @default(cuid())
+  kind       FileKind
+  mime       String
+  size       Int
+  /// Path relative to UPLOAD_DIR.
+  path       String   @unique
+  sha256     String
+  scanStatus String   @default("clean")
+  createdAt  DateTime @default(now())
+
+  applicationPhoto Application?          @relation("ApplicationPhoto")
+  dependantPhoto   ApplicationDependant? @relation("DependantPhoto")
+  dependantProof   ApplicationDependant? @relation("DependantDobProof")
+  cardholderPhoto  Cardholder?           @relation("CardholderPhoto")
+  cardholderProof  Cardholder?           @relation("CardholderDobProof")
+}
+
+// ─── Events and announcements ────────────────────────────────────────────
+
+model Event {
+  id          String   @id @default(cuid())
+  title       String
+  schedule    String
+  description String
+  /// Adult-only events are never listed or promoted to Junior accounts.
+  adultOnly   Boolean  @default(true)
+  membersOnly Boolean  @default(false)
+  /// Lowest main-tier rank invited (null = everyone).
+  minRank     Int?
+  published   Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Announcement {
+  id          String    @id @default(cuid())
+  title       String
+  body        String
+  /// Package slugs targeted; empty = all active members.
+  packageSlugs String[]
+  channels    String[]
+  /// Adult-only content is never sent to junior guardians as part of a junior's membership.
+  adultOnly   Boolean   @default(false)
+  showInPortal Boolean  @default(true)
+  sentAt      DateTime?
+  recipients  Int       @default(0)
+  createdById String
+  createdBy   AdminUser @relation(fields: [createdById], references: [id])
+  createdAt   DateTime  @default(now())
+}
+
+// ─── Admin ───────────────────────────────────────────────────────────────
+
+enum AdminRole {
+  SUPER_ADMIN
+  MANAGER
+  FRONT_DESK
+  ACCOUNTANT
+}
+
+model AdminUser {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  name         String
+  role         AdminRole
+  passwordHash String
+  totpSecret   String?
+  totpEnabled  Boolean   @default(false)
+  active       Boolean   @default(true)
+  failedLogins Int       @default(0)
+  lockedUntil  DateTime?
+  lastLoginAt  DateTime?
+  createdAt    DateTime  @default(now())
+
+  sessions      AdminSession[]
+  audit         AuditLog[]
+  reviewed      Application[]
+  confirmedPays Payment[]
+  announcements Announcement[]
+}
+
+model AdminSession {
+  id         String    @id @default(cuid())
+  tokenHash  String    @unique
+  userId     String
+  user       AdminUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pending2fa Boolean   @default(false)
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
+  ip         String?
+  userAgent  String?
+
+  @@index([userId])
+}
+
+model AuditLog {
+  id        String     @id @default(cuid())
+  actorId   String?
+  actor     AdminUser? @relation(fields: [actorId], references: [id])
+  /// "system" for cron/webhooks, "member" for portal actions, else the admin's email.
+  actorLabel String
+  action    String
+  entity    String
+  entityId  String?
+  detail    Json?
+  ip        String?
+  createdAt DateTime   @default(now())
+
+  @@index([createdAt])
+  @@index([entity, entityId])
+}
+
+// ─── OTP, reminders, notifications, settings ─────────────────────────────
+
+model OtpCode {
+  id        String   @id @default(cuid())
+  /// "login" | "lookup"
+  purpose   String
+  /// Account id or membership number the code unlocks.
+  subject   String
+  codeHash  String
+  attempts  Int      @default(0)
+  usedAt    DateTime?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([purpose, subject])
+}
+
+/// One row per reminder actually sent, so the daily job never sends a duplicate.
+model ReminderLog {
+  id           String     @id @default(cuid())
+  membershipId String
+  membership   Membership @relation(fields: [membershipId], references: [id], onDelete: Cascade)
+  /// e.g. "expiry-30", "expiry-14", "expiry-3", "expired", "junior-18-60"
+  kind         String
+  /// The expiry (or 18th birthday) the reminder refers to.
+  forDate      DateTime   @db.Date
+  sentAt       DateTime   @default(now())
+
+  @@unique([membershipId, kind, forDate])
+}
+
+enum Channel {
+  EMAIL
+  SMS
+  WHATSAPP
+}
+
+enum DeliveryStatus {
+  SENT
+  FAILED
+  SKIPPED
+}
+
+model NotificationLog {
+  id        String         @id @default(cuid())
+  channel   Channel
+  kind      String
+  to        String
+  subject   String?
+  status    DeliveryStatus
+  error     String?
+  createdAt DateTime       @default(now())
+
+  @@index([createdAt])
+}
+
+enum DataRequestType {
+  CORRECTION
+  DELETION
+  EXPORT
+}
+
+model DataRequest {
+  id          String          @id @default(cuid())
+  accountId   String
+  account     Account         @relation(fields: [accountId], references: [id])
+  type        DataRequestType
+  /// Whose data: "self" or a cardholder id (a guardian acting for a child).
+  subject     String          @default("self")
+  details     String
+  status      String          @default("OPEN")
+  resolution  String?
+  resolvedAt  DateTime?
+  createdAt   DateTime        @default(now())
+}
+
+model Setting {
+  key   String @id
+  value Json
+}
+
+model RateBucket {
+  key     String   @id
+  count   Int
+  resetAt DateTime
+}
+
+/// Every membership number ever issued, so a number is never handed out twice,
+/// even after a deletion request erases the member.
+model IssuedNumber {
+  number    String   @id
+  issuedAt  DateTime @default(now())
+}
+
+model Counter {
+  key   String @id
+  value Int
+}

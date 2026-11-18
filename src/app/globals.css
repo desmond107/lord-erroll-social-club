@@ -1,0 +1,434 @@
+@import "tailwindcss";
+
+/* ── Brand tokens ──────────────────────────────────────────────────────────
+   The public site is deliberately dark (charcoal + emerald, gold foil) with ivory
+   "paper" sections; the admin uses the ivory surface for long working sessions.
+   Gold #c9a24b is decorative; text on ivory uses --gold-ink (4.5:1+). */
+:root {
+  --charcoal: #0e0f0d;
+  --charcoal-2: #171815;
+  --emerald-deep: #0a2618;
+  --emerald: #14432b;
+  --emerald-bright: #1f6b45;
+  --crimson: #8e1f24;
+  --crimson-bright: #b3343a;
+  --gold: #c9a24b;
+  --gold-light: #f3dc8e;
+  --gold-ink: #7a5a1a;
+  --ivory: #f6efe0;
+  --cream: #efe4cc;
+  --paper: #fbf7ee;
+  --ink: #1c1f1c;
+  --ink-soft: #4f514a;
+  --on-dark: #efe7d3;
+  --on-dark-soft: #b9b19e;
+  --line-dark: rgb(201 162 75 / 0.22);
+  --line-light: #e2d6bc;
+  --ok: #1f6b45;
+  --warn: #9a6a12;
+  --bad: #9e2a2f;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-charcoal: var(--charcoal);
+  --color-charcoal-2: var(--charcoal-2);
+  --color-emerald-deep: var(--emerald-deep);
+  --color-emerald: var(--emerald);
+  --color-emerald-bright: var(--emerald-bright);
+  --color-crimson: var(--crimson);
+  --color-crimson-bright: var(--crimson-bright);
+  --color-gold: var(--gold);
+  --color-gold-light: var(--gold-light);
+  --color-gold-ink: var(--gold-ink);
+  --color-ivory: var(--ivory);
+  --color-cream: var(--cream);
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-on-dark: var(--on-dark);
+  --color-on-dark-soft: var(--on-dark-soft);
+  --color-line-dark: var(--line-dark);
+  --color-line-light: var(--line-light);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-bad: var(--bad);
+  --font-serif: var(--font-cormorant), "Cormorant Garamond", Georgia, serif;
+  --font-sans: var(--font-manrope), system-ui, sans-serif;
+  --font-black: var(--font-fraktur), "UnifrakturMaguntia", serif;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
+}
+body {
+  background: var(--charcoal);
+  color: var(--on-dark);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+::selection {
+  background: rgb(201 162 75 / 0.35);
+}
+:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+
+/* ── Type ──────────────────────────────────────────────────────────────── */
+.display {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  letter-spacing: 0.005em;
+  line-height: 1.05;
+}
+.eyebrow {
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+.on-paper .eyebrow {
+  color: var(--gold-ink);
+}
+.blackletter {
+  font-family: var(--font-black);
+  font-weight: 400;
+}
+.prose-club p {
+  margin: 0 0 1.1em;
+  line-height: 1.8;
+}
+.prose-club h2 {
+  font-family: var(--font-serif);
+  font-size: 1.9rem;
+  margin: 2.2rem 0 0.8rem;
+  line-height: 1.15;
+}
+.prose-club h3 {
+  font-family: var(--font-serif);
+  font-size: 1.35rem;
+  margin: 1.6rem 0 0.5rem;
+}
+.prose-club ul {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 1.2em;
+}
+.prose-club li {
+  padding-left: 1.4em;
+  position: relative;
+  margin: 0.4em 0;
+  line-height: 1.7;
+}
+.prose-club li::before {
+  content: "❦";
+  position: absolute;
+  left: 0;
+  color: var(--gold);
+  font-size: 0.85em;
+}
+
+/* ── Surfaces ──────────────────────────────────────────────────────────── */
+.on-paper {
+  background: var(--paper);
+  color: var(--ink);
+}
+.bg-vignette {
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgb(31 107 69 / 0.28) 0%, transparent 60%),
+    radial-gradient(120% 120% at 50% 120%, rgb(0 0 0 / 0.65) 0%, transparent 55%),
+    var(--emerald-deep);
+}
+.fleur-pattern {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cpath fill='%23c9a24b' fill-opacity='.07' d='M32 14c-2.5 3-3.5 6-3.5 9 0 2.5 1.5 4.5 3.5 6 2-1.5 3.5-3.5 3.5-6 0-3-1-6-3.5-9Zm-1 16c-2-2.5-4.5-4-7.5-4-2.5 0-4.5 1.5-4.5 4 0 2 1.5 3.5 3.5 3.5 1.5 0 2.5-1 2.5-2.5-1 .5-2.5 0-2.5-1 0-1.5 1.5-2 3-2 2.5 0 4 2 4.5 4h1Zm2 0c2-2.5 4.5-4 7.5-4 2.5 0 4.5 1.5 4.5 4 0 2-1.5 3.5-3.5 3.5-1.5 0-2.5-1-2.5-2.5 1 .5 2.5 0 2.5-1 0-1.5-1.5-2-3-2-2.5 0-4 2-4.5 4h-1ZM26 31.5h12v2H26zm4.5 2.5h3c0 3 1 5.5 3 7.5H27.5c2-2 3-4.5 3-7.5Z'/%3E%3C/svg%3E");
+}
+.on-paper.fleur-pattern,
+.on-paper .fleur-pattern {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Cpath fill='%237a5a1a' fill-opacity='.06' d='M32 14c-2.5 3-3.5 6-3.5 9 0 2.5 1.5 4.5 3.5 6 2-1.5 3.5-3.5 3.5-6 0-3-1-6-3.5-9Zm-1 16c-2-2.5-4.5-4-7.5-4-2.5 0-4.5 1.5-4.5 4 0 2 1.5 3.5 3.5 3.5 1.5 0 2.5-1 2.5-2.5-1 .5-2.5 0-2.5-1 0-1.5 1.5-2 3-2 2.5 0 4 2 4.5 4h1Zm2 0c2-2.5 4.5-4 7.5-4 2.5 0 4.5 1.5 4.5 4 0 2-1.5 3.5-3.5 3.5-1.5 0-2.5-1-2.5-2.5 1 .5 2.5 0 2.5-1 0-1.5-1.5-2-3-2-2.5 0-4 2-4.5 4h-1ZM26 31.5h12v2H26zm4.5 2.5h3c0 3 1 5.5 3 7.5H27.5c2-2 3-4.5 3-7.5Z'/%3E%3C/svg%3E");
+}
+
+/* Gold filigree divider: hairlines either side of an ornament. */
+.filigree {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.9rem;
+  color: var(--gold);
+}
+.filigree::before,
+.filigree::after {
+  content: "";
+  height: 1px;
+  flex: 0 1 7rem;
+  background: linear-gradient(90deg, transparent, var(--gold));
+}
+.filigree::after {
+  background: linear-gradient(90deg, var(--gold), transparent);
+}
+.on-paper .filigree {
+  color: var(--gold-ink);
+}
+
+.gold-frame {
+  border: 1px solid var(--line-dark);
+  box-shadow: inset 0 0 0 4px transparent, inset 0 0 0 5px rgb(201 162 75 / 0.12);
+}
+.on-paper .gold-frame {
+  border-color: var(--line-light);
+  box-shadow: inset 0 0 0 4px transparent, inset 0 0 0 5px rgb(122 90 26 / 0.1);
+}
+
+/* ── Buttons: gold shimmer sweeps across on hover ──────────────────────── */
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  min-height: 3rem;
+  padding: 0.8rem 1.6rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  overflow: hidden;
+  isolation: isolate;
+  transition: color 0.4s ease, background-color 0.4s ease, border-color 0.4s ease, transform 0.4s ease;
+  cursor: pointer;
+}
+.btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(110deg, transparent 30%, rgb(255 241 184 / 0.55) 50%, transparent 70%);
+  transform: translateX(-120%);
+  transition: transform 0.9s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.btn:hover::after {
+  transform: translateX(120%);
+}
+.btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+.btn-gold {
+  color: #1a1407;
+  background: linear-gradient(135deg, #b38a35 0%, #e9cd80 45%, #c9a24b 60%, #a57d2c 100%);
+  border: 1px solid #e9cd80;
+}
+.btn-outline {
+  color: var(--gold-light);
+  border: 1px solid var(--gold);
+  background: rgb(10 38 24 / 0.35);
+}
+.btn-outline:hover {
+  background: rgb(201 162 75 / 0.12);
+}
+.btn-green {
+  color: var(--gold-light);
+  background: var(--emerald);
+  border: 1px solid var(--gold);
+}
+.btn-green:hover {
+  background: var(--emerald-bright);
+}
+.on-paper .btn-outline {
+  color: var(--emerald);
+  border-color: var(--gold-ink);
+  background: transparent;
+}
+.btn-sm {
+  min-height: 2.4rem;
+  padding: 0.5rem 1rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.14em;
+}
+
+.link-gold {
+  color: var(--gold-light);
+  background-image: linear-gradient(var(--gold), var(--gold));
+  background-size: 0% 1px;
+  background-position: 0 100%;
+  background-repeat: no-repeat;
+  transition: background-size 0.5s ease;
+}
+.link-gold:hover {
+  background-size: 100% 1px;
+}
+.on-paper .link-gold {
+  color: var(--emerald);
+}
+
+/* ── Forms ─────────────────────────────────────────────────────────────── */
+.field label,
+.label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  margin-bottom: 0.45rem;
+  color: var(--ink-soft);
+}
+.input {
+  width: 100%;
+  min-height: 2.9rem;
+  padding: 0.65rem 0.9rem;
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid var(--line-light);
+  font-size: 1rem;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.input:focus {
+  outline: none;
+  border-color: var(--gold-ink);
+  box-shadow: 0 0 0 3px rgb(201 162 75 / 0.25);
+}
+.input[aria-invalid="true"] {
+  border-color: var(--bad);
+}
+textarea.input {
+  min-height: 6rem;
+}
+.hint {
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  margin-top: 0.35rem;
+}
+.err {
+  font-size: 0.85rem;
+  color: var(--bad);
+  margin-top: 0.35rem;
+}
+
+/* ── Motion ────────────────────────────────────────────────────────────── */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 1.2s cubic-bezier(0.22, 1, 0.36, 1), transform 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.reveal.is-in {
+  opacity: 1;
+  transform: none;
+}
+@keyframes crest-reveal {
+  0% {
+    opacity: 0;
+    transform: translateY(18px) scale(0.94);
+    filter: brightness(0.4) blur(6px);
+  }
+  60% {
+    opacity: 1;
+    filter: brightness(1.15) blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+.crest-reveal {
+  animation: crest-reveal 2.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes fade-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.fade-rise {
+  animation: fade-rise 1.6s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes glint {
+  0%,
+  70% {
+    transform: translateX(-130%) skewX(-18deg);
+  }
+  100% {
+    transform: translateX(230%) skewX(-18deg);
+  }
+}
+.crest-glint {
+  position: relative;
+  overflow: hidden;
+}
+.crest-glint::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  background: linear-gradient(90deg, transparent, rgb(255 241 184 / 0.35), transparent);
+  animation: glint 7s ease-in-out 2.4s infinite;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    opacity: 1;
+    transform: none;
+    transition: none;
+  }
+  .crest-reveal,
+  .fade-rise {
+    animation: none;
+  }
+  .crest-glint::after,
+  .btn::after {
+    display: none;
+  }
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* ── Photo placeholder (until the client's photography arrives) ────────── */
+.photo-slot {
+  position: relative;
+  background:
+    radial-gradient(90% 70% at 30% 20%, rgb(201 162 75 / 0.16), transparent 60%),
+    linear-gradient(160deg, #183a29 0%, #0c1f15 60%, #070f0b 100%);
+  overflow: hidden;
+}
+.photo-slot::before {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  border: 1px solid rgb(201 162 75 / 0.35);
+  pointer-events: none;
+}
+
+/* ── Admin table niceties ──────────────────────────────────────────────── */
+.tbl {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+.tbl th {
+  text-align: left;
+  font-size: 0.7rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  font-weight: 700;
+  padding: 0.6rem 0.75rem;
+  border-bottom: 1px solid var(--line-light);
+  white-space: nowrap;
+}
+.tbl td {
+  padding: 0.7rem 0.75rem;
+  border-bottom: 1px solid var(--line-light);
+  vertical-align: top;
+}
+.tbl tr:hover td {
+  background: rgb(201 162 75 / 0.06);
+}
